@@ -1,0 +1,31 @@
+{
+  "compilerOptions": {
+    /* Module system: ESM via NodeNext, matching "type": "module" and the .js
+       import specifiers in the source. */
+    "module": "NodeNext",
+    "moduleResolution": "NodeNext",
+    "target": "ES2022",
+    "lib": ["ES2022"],
+
+    /* Emit: compile src -> dist with declarations and sourcemaps. */
+    "outDir": "dist",
+    "rootDir": "src",
+    "declaration": true,
+    "declarationMap": true,
+    "sourceMap": true,
+
+    /* Strictness. exactOptionalPropertyTypes is intentionally left OFF. */
+    "strict": true,
+    "noUncheckedIndexedAccess": true,
+    "verbatimModuleSyntax": true,
+    "noImplicitOverride": true,
+
+    /* Interop / hygiene. */
+    "esModuleInterop": true,
+    "forceConsistentCasingInFileNames": true,
+    "resolveJsonModule": true,
+    "skipLibCheck": true
+  },
+  "include": ["src"],
+  "exclude": ["node_modules", "dist"]
+}
