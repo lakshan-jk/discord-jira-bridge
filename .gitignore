@@ -1,0 +1,12 @@
+node_modules/
+dist/
+
+# env files (never commit secrets)
+.env
+.env.*
+!.env.example
+
+# logs / misc
+*.log
+.DS_Store
+coverage/
