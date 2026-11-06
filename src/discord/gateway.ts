@@ -11,9 +11,16 @@ import { ChannelType, Client, Events, GatewayIntentBits } from 'discord.js';
 import type { AnyThreadChannel, Message } from 'discord.js';
 import type { BackfillQuery, DiscordGateway, RawMessage, RawThread } from './types.js';
 
+export interface GatewayLogger {
+  info(message: string, meta?: Record<string, unknown>): void;
+}
+
 export interface GatewayConfig {
   readonly botToken: string;
+  readonly logger?: GatewayLogger;
 }
+
+const noopLogger: GatewayLogger = { info: () => {} };
 
 export function createDiscordGateway(config: GatewayConfig): DiscordGateway {
   return new DiscordJsGateway(config);
@@ -22,11 +29,13 @@ export function createDiscordGateway(config: GatewayConfig): DiscordGateway {
 class DiscordJsGateway implements DiscordGateway {
   private readonly client: Client;
   private readonly token: string;
+  private readonly log: GatewayLogger;
   private threadHandler?: (thread: RawThread) => Promise<void>;
   private messageHandler?: (message: RawMessage) => Promise<void>;
 
   constructor(config: GatewayConfig) {
     this.token = config.botToken;
+    this.log = config.logger ?? noopLogger;
     this.client = new Client({
       intents: [
         GatewayIntentBits.Guilds,
@@ -42,9 +51,15 @@ class DiscordJsGateway implements DiscordGateway {
     this.client.on(Events.Error, () => {});
 
     this.client.on(Events.ThreadCreate, (thread) => {
+      this.log.info('discord thread event received', { threadId: thread.id, name: thread.name });
       void this.dispatchThread(thread);
     });
     this.client.on(Events.MessageCreate, (message) => {
+      this.log.info('discord message event received', {
+        messageId: message.id,
+        threadId: message.channelId,
+        authorId: message.author.id,
+      });
       void this.messageHandler?.(this.toRawMessage(message));
     });
   }
@@ -58,7 +73,18 @@ class DiscordJsGateway implements DiscordGateway {
   }
 
   async start(): Promise<void> {
+    // login() resolves as soon as the token is accepted, but the guild/channel
+    // cache isn't populated until 'ready' — and backfill reads that cache. Wait for
+    // 'ready' so listThreads/listMessages see the actual guilds. (If the token is
+    // bad, login() rejects below before we await this, so we never hang here.)
+    const ready = new Promise<void>((resolve) => {
+      this.client.once(Events.ClientReady, (client) => {
+        this.log.info('discord gateway ready', { user: client.user.tag });
+        resolve();
+      });
+    });
     await this.client.login(this.token);
+    await ready;
   }
 
   async stop(): Promise<void> {

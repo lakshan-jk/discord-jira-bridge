@@ -1,0 +1,27 @@
+# Local Postgres for the Discord->JIRA sync bot.
+#   docker compose up -d      # start
+#   docker compose down       # stop (keeps data)
+#   docker compose down -v     # stop and wipe the volume
+#
+# Credentials here match the DATABASE_URL default in .env.example:
+#   postgres://jumeau:jumeau@localhost:5432/jumeau
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: jumeau-postgres
+    environment:
+      POSTGRES_USER: jumeau
+      POSTGRES_PASSWORD: jumeau
+      POSTGRES_DB: jumeau
+    ports:
+      - '5432:5432'
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U jumeau -d jumeau']
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+volumes:
+  pgdata:
