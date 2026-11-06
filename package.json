@@ -8,8 +8,8 @@
   },
   "scripts": {
     "build": "tsc -p tsconfig.json",
-    "start": "npm run build && node dist/index.js",
-    "dev": "tsx src/index.ts",
+    "start": "npm run build && node --env-file-if-exists=.env dist/index.js",
+    "dev": "tsx --env-file-if-exists=.env src/index.ts",
     "typecheck": "tsc -p tsconfig.json --noEmit",
     "test": "vitest run",
     "test:watch": "vitest",
