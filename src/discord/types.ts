@@ -52,7 +52,7 @@ export interface RawMessage {
 
 /* ------------------------------ normalized output ----------------------------- */
 
-export type IngestSource = 'gateway' | 'backfill';
+export type IngestSource = 'gateway' | 'backfill' | 'resync';
 export type IngestedEventType = 'thread_created' | 'comment' | 'status_command';
 
 interface BaseIngestedEvent {
@@ -117,4 +117,7 @@ export interface DiscordGateway {
   listThreads(query: BackfillQuery): Promise<readonly RawThread[]>;
   /** Fetch a thread's messages, oldest-first, for backfill. */
   listMessages(threadId: string): Promise<readonly RawMessage[]>;
+
+  /** Post a message into a channel/thread (used to reply with the !resync summary). */
+  sendMessage(channelId: string, content: string): Promise<void>;
 }

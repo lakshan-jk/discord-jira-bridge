@@ -13,7 +13,7 @@ import { config } from './config/index.js';
 import { createLogger } from './lib/logger.js';
 import { createDb, createEventQueue, createMappingStore, migrate } from './db/index.js';
 import { createJiraClient } from './jira/index.js';
-import { createSyncEngine } from './sync/index.js';
+import { createSyncEngine, createResyncer } from './sync/index.js';
 import { createWorker } from './worker/index.js';
 import { Ingestor, createDiscordGateway } from './discord/index.js';
 import { startHealthServer } from './http/health.js';
@@ -35,9 +35,19 @@ async function main(): Promise<void> {
   const engine = createSyncEngine({ jira, mappings, logger });
   const worker = createWorker({ queue, engine, logger });
 
-  // Discord ingestion.
+  // Discord ingestion. The !resync command runs the engine's idempotent create path
+  // over a whole channel and replies with a summary.
   const gateway = createDiscordGateway({ botToken: config.discord.botToken, logger });
-  const ingestor = new Ingestor({ gateway, queue, logger });
+  const resyncer = createResyncer({ gateway, engine, logger });
+  const ingestor = new Ingestor({
+    gateway,
+    queue,
+    logger,
+    onResyncCommand: (command) =>
+      resyncer
+        .resync({ channelName: command.channelName, replyChannelId: command.replyChannelId })
+        .then(() => {}),
+  });
 
   // /health comes up first so it's verifiable regardless of Discord/JIRA.
   const health = await startHealthServer({ port: config.http.port, db, logger });
@@ -83,7 +93,6 @@ async function main(): Promise<void> {
 }
 
 main().catch((err: unknown) => {
-  // eslint-disable-next-line no-console
   console.error('fatal startup error', err);
   process.exit(1);
 });

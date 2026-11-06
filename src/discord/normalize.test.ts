@@ -1,5 +1,10 @@
 import { describe, expect, it } from 'vitest';
-import { normalizeMessage, normalizeThreadCreated, parseStatusCommand } from './normalize.js';
+import {
+  isResyncCommand,
+  normalizeMessage,
+  normalizeThreadCreated,
+  parseStatusCommand,
+} from './normalize.js';
 import type { RawMessage, RawThread } from './types.js';
 
 const AT = new Date('2026-11-06T10:00:00Z');
@@ -88,5 +93,18 @@ describe('parseStatusCommand', () => {
     expect(parseStatusCommand('just a comment')).toBeNull();
     expect(parseStatusCommand('/status')).toBeNull();
     expect(parseStatusCommand('/unknown thing')).toBeNull();
+  });
+});
+
+describe('isResyncCommand', () => {
+  it('recognizes !resync (case-insensitive, trimmed)', () => {
+    expect(isResyncCommand('!resync')).toBe(true);
+    expect(isResyncCommand('  !ReSync  ')).toBe(true);
+  });
+
+  it('rejects anything else', () => {
+    expect(isResyncCommand('!resync now')).toBe(false);
+    expect(isResyncCommand('resync')).toBe(false);
+    expect(isResyncCommand('/status Done')).toBe(false);
   });
 });

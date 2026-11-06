@@ -7,7 +7,7 @@
  */
 
 export { Ingestor } from './ingestor.js';
-export type { BackfillOptions, IngestorDeps, IngestLogger } from './ingestor.js';
+export type { BackfillOptions, IngestorDeps, IngestLogger, ResyncCommand } from './ingestor.js';
 export { createDiscordGateway } from './gateway.js';
 export type { GatewayConfig } from './gateway.js';
 export { channelNameToProjectKey } from './mapper.js';
@@ -15,6 +15,7 @@ export {
   normalizeThreadCreated,
   normalizeMessage,
   parseStatusCommand,
+  isResyncCommand,
   toEnqueueInput,
 } from './normalize.js';
 export type {
