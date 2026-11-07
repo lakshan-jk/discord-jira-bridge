@@ -16,12 +16,11 @@ import type {
   ThreadCreatedEvent,
 } from './types.js';
 
-const COMMAND_PREFIX = '/';
 const RESYNC_COMMAND = '!resync';
 
 /**
- * Recognize the channel-level `!resync` command. Unlike the per-issue `/status`
- * commands it uses a `!` prefix and takes no argument — it triggers a sweep of the
+ * Recognize the channel-level `!resync` command. Unlike the per-issue `status:`
+ * marker it uses a `!` prefix and takes no argument — it triggers a sweep of the
  * whole forum channel, so it is routed separately from normalization.
  */
 export function isResyncCommand(content: string): boolean {
@@ -29,34 +28,39 @@ export function isResyncCommand(content: string): boolean {
 }
 
 /**
- * Recognize a status command in a message body. Returns the target status name, or
- * null if the message is just a normal comment.
- *
- *   /status In Progress  -> "In Progress"
- *   /blocked             -> "blocked"
- *
- * The command token is case-insensitive; the target is preserved verbatim and
- * resolved against the issue's own workflow downstream (design #5).
+ * Keyword -> target the sync engine acts on. `blocked` is a sentinel the engine
+ * turns into a label + comment (design #5); the others are canonical JIRA status
+ * names resolved against the issue's own workflow downstream.
  */
+const STATUS_KEYWORDS: Record<string, string> = {
+  todo: 'To Do',
+  in_progress: 'In Progress',
+  done: 'Done',
+  blocked: 'blocked',
+};
+
+/**
+ * Detect a `status: <keyword>` marker ANYWHERE in a message body, so it works in
+ * natural sentences, not just at the start:
+ *
+ *   status: done                     -> "Done"
+ *   wrapping up, status: in_progress  -> "In Progress"
+ *   status: blocked                  -> "blocked"  (engine applies a label)
+ *
+ * Returns the mapped target, or null if the message carries no recognized marker
+ * (a normal comment). The keyword and the `status:` token are case-insensitive;
+ * `in_progress` also accepts a space or hyphen ("in progress", "in-progress").
+ */
+const STATUS_MARKER = /status:\s*(todo|in[\s_-]progress|done|blocked)\b/i;
+
 export function parseStatusCommand(content: string): string | null {
-  const trimmed = content.trim();
-  if (!trimmed.startsWith(COMMAND_PREFIX)) {
+  const match = STATUS_MARKER.exec(content);
+  if (!match?.[1]) {
     return null;
   }
-
-  const withoutPrefix = trimmed.slice(COMMAND_PREFIX.length);
-  const spaceIdx = withoutPrefix.indexOf(' ');
-  const command = (spaceIdx === -1 ? withoutPrefix : withoutPrefix.slice(0, spaceIdx)).toLowerCase();
-  const rest = spaceIdx === -1 ? '' : withoutPrefix.slice(spaceIdx + 1).trim();
-
-  if (command === 'status') {
-    // A bare "/status" with no target isn't a command — treat as a comment.
-    return rest.length > 0 ? rest : null;
-  }
-  if (command === 'blocked') {
-    return 'blocked';
-  }
-  return null;
+  // Normalize the captured keyword: lowercase, collapse space/hyphen to underscore.
+  const keyword = match[1].toLowerCase().replace(/[\s-]+/g, '_');
+  return STATUS_KEYWORDS[keyword] ?? null;
 }
 
 /**

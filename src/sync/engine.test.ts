@@ -50,7 +50,7 @@ function statusEvent(over: Partial<StatusCommandEvent> = {}): StatusCommandEvent
     source: 'gateway',
     messageId: 'm1',
     targetStatus: 'In Progress',
-    rawBody: '/status In Progress',
+    rawBody: 'moving this forward, status: in_progress',
     ...over,
   };
 }
@@ -163,7 +163,7 @@ describe('status command — comment always recorded', () => {
     // The comment was recorded despite the skipped transition.
     expect(jira.addComment).toHaveBeenCalledWith('CHK-1', {
       authorDisplayName: 'Ada',
-      body: '/status In Progress',
+      body: 'moving this forward, status: in_progress',
     });
   });
 
@@ -185,13 +185,13 @@ describe('status command — comment always recorded', () => {
     expect(jira.addComment).toHaveBeenCalledOnce();
   });
 
-  it('handles /blocked as a label + comment, not a transition', async () => {
+  it('handles status: blocked as a label + comment, not a transition', async () => {
     const jira = mockJira();
     const mappings = new InMemoryMappingStore();
     await mappings.insert({ discordThreadId: 'thread-1', jiraIssueKey: 'CHK-1', jiraIssueId: '1' });
     const engine = createSyncEngine({ jira, mappings });
 
-    const result = await engine.handle(statusEvent({ targetStatus: 'blocked', rawBody: '/blocked' }));
+    const result = await engine.handle(statusEvent({ targetStatus: 'blocked', rawBody: 'status: blocked' }));
 
     expect(result).toEqual({ outcome: 'blocked', issueKey: 'CHK-1' });
     expect(jira.addLabels).toHaveBeenCalledWith('CHK-1', ['blocked']);

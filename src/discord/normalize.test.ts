@@ -69,9 +69,13 @@ describe('normalizeMessage', () => {
     });
   });
 
-  it('recognizes a status command', () => {
-    const event = normalizeMessage(message({ content: '/status In Progress' }), 'gateway');
-    expect(event).toMatchObject({ type: 'status_command', targetStatus: 'In Progress' });
+  it('recognizes a status marker inside a sentence', () => {
+    const event = normalizeMessage(message({ content: 'wrapping up, status: done' }), 'gateway');
+    expect(event).toMatchObject({
+      type: 'status_command',
+      targetStatus: 'Done',
+      rawBody: 'wrapping up, status: done',
+    });
   });
 
   it('drops bot, system, starter, and empty messages', () => {
@@ -83,16 +87,27 @@ describe('normalizeMessage', () => {
 });
 
 describe('parseStatusCommand', () => {
-  it('parses /status with a target and /blocked', () => {
-    expect(parseStatusCommand('/status Done')).toBe('Done');
-    expect(parseStatusCommand('/STATUS in review')).toBe('in review');
-    expect(parseStatusCommand('/blocked')).toBe('blocked');
+  it('maps each keyword to its canonical target', () => {
+    expect(parseStatusCommand('status: todo')).toBe('To Do');
+    expect(parseStatusCommand('status: in_progress')).toBe('In Progress');
+    expect(parseStatusCommand('status: done')).toBe('Done');
+    expect(parseStatusCommand('status: blocked')).toBe('blocked');
   });
 
-  it('treats non-commands and bare /status as comments (null)', () => {
+  it('detects the marker anywhere in a sentence, case-insensitively', () => {
+    expect(parseStatusCommand('wrapping up, status: done')).toBe('Done');
+    expect(parseStatusCommand('STATUS:  In_Progress now')).toBe('In Progress');
+  });
+
+  it('accepts a space or hyphen for in_progress', () => {
+    expect(parseStatusCommand('status: in progress')).toBe('In Progress');
+    expect(parseStatusCommand('status: in-progress')).toBe('In Progress');
+  });
+
+  it('treats messages with no recognized marker as comments (null)', () => {
     expect(parseStatusCommand('just a comment')).toBeNull();
-    expect(parseStatusCommand('/status')).toBeNull();
-    expect(parseStatusCommand('/unknown thing')).toBeNull();
+    expect(parseStatusCommand('status: shipped')).toBeNull();
+    expect(parseStatusCommand('the status is done')).toBeNull();
   });
 });
 
