@@ -1,0 +1,37 @@
+# Fly.io configuration for the Discord -> JIRA sync bot.
+#
+# No secrets live here. DATABASE_URL, JIRA_* and DISCORD_BOT_TOKEN are provided at
+# runtime via `fly secrets set` (and `fly postgres attach` for DATABASE_URL).
+
+app = "discord-jira-bridge"
+primary_region = "iad"
+
+# Build our Docker image from the repo's multi-stage Dockerfile.
+[build]
+  dockerfile = "Dockerfile"
+
+# Non-secret runtime config only. PORT matches the health server's internal port.
+[env]
+  NODE_ENV = "production"
+  PORT = "3000"
+
+[http_service]
+  internal_port = 3000
+  force_https = true
+  # The bot keeps a persistent Discord gateway connection and continuously drains
+  # the queue, so it must stay running rather than stop when HTTP traffic is idle.
+  auto_stop_machines = false
+  auto_start_machines = false
+  min_machines_running = 1
+
+  # HTTP health check against the app's /health endpoint.
+  [[http_service.checks]]
+    method = "get"
+    path = "/health"
+    interval = "15s"
+    timeout = "5s"
+    grace_period = "10s"
+
+[[vm]]
+  size = "shared-cpu-1x"
+  memory = "512mb"
