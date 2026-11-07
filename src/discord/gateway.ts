@@ -114,6 +114,13 @@ class DiscordJsGateway implements DiscordGateway {
     return raw;
   }
 
+  async sendMessage(channelId: string, content: string): Promise<void> {
+    const channel = await this.client.channels.fetch(channelId);
+    if (channel?.isSendable()) {
+      await channel.send(content);
+    }
+  }
+
   async listMessages(threadId: string): Promise<readonly RawMessage[]> {
     const channel = await this.client.channels.fetch(threadId);
     if (!channel || !channel.isThread()) {

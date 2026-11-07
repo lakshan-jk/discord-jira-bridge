@@ -1,10 +1,12 @@
-# Local Postgres for the Discord->JIRA sync bot.
-#   docker compose up -d      # start
-#   docker compose down       # stop (keeps data)
-#   docker compose down -v     # stop and wipe the volume
+# Local stack for the Discord->JIRA sync bot: the bot + its Postgres.
+#   docker compose up --build      # build the bot image and bring up both
+#   docker compose up -d --build   # same, detached
+#   docker compose down            # stop (keeps data)
+#   docker compose down -v         # stop and wipe the DB volume
 #
-# Credentials here match the DATABASE_URL default in .env.example:
-#   postgres://jumeau:jumeau@localhost:5432/jumeau
+# JIRA/Discord secrets are read from your shell env or a local .env file (compose
+# substitutes ${...} below); without them the bot still boots and serves /health,
+# with Discord ingestion disabled (an invalid token just logs a warning).
 services:
   postgres:
     image: postgres:16-alpine
@@ -22,6 +24,41 @@ services:
       interval: 5s
       timeout: 5s
       retries: 10
+
+  bot:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: jumeau-bot
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      NODE_ENV: production
+      LOG_LEVEL: ${LOG_LEVEL:-info}
+      PORT: 3000
+      # Reach Postgres by its compose service name, not localhost.
+      DATABASE_URL: postgres://jumeau:jumeau@postgres:5432/jumeau
+      # Secrets: supplied via shell env or .env; valid-format placeholders otherwise.
+      JIRA_BASE_URL: ${JIRA_BASE_URL:-https://your-site.atlassian.net}
+      JIRA_EMAIL: ${JIRA_EMAIL:-service-account@your-org.com}
+      JIRA_API_TOKEN: ${JIRA_API_TOKEN:-replace-with-atlassian-api-token}
+      DISCORD_BOT_TOKEN: ${DISCORD_BOT_TOKEN:-replace-with-discord-bot-token}
+      BACKFILL_LOOKBACK_HOURS: ${BACKFILL_LOOKBACK_HOURS:-24}
+      BACKFILL_INCLUDE_ARCHIVED: ${BACKFILL_INCLUDE_ARCHIVED:-false}
+    ports:
+      - '3000:3000'
+    restart: unless-stopped
+    healthcheck:
+      test:
+        - CMD
+        - node
+        - -e
+        - "require('http').get('http://localhost:3000/health',r=>process.exit(r.statusCode===200?0:1)).on('error',()=>process.exit(1))"
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
 
 volumes:
   pgdata:

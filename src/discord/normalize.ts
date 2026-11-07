@@ -17,6 +17,16 @@ import type {
 } from './types.js';
 
 const COMMAND_PREFIX = '/';
+const RESYNC_COMMAND = '!resync';
+
+/**
+ * Recognize the channel-level `!resync` command. Unlike the per-issue `/status`
+ * commands it uses a `!` prefix and takes no argument — it triggers a sweep of the
+ * whole forum channel, so it is routed separately from normalization.
+ */
+export function isResyncCommand(content: string): boolean {
+  return content.trim().toLowerCase() === RESYNC_COMMAND;
+}
 
 /**
  * Recognize a status command in a message body. Returns the target status name, or

@@ -22,6 +22,28 @@ export default tseslint.config(
     files: ['*.js', '*.config.js', '*.config.ts'],
     ...tseslint.configs.disableTypeChecked,
   },
+  // Integration tests live under tests/, outside the tsconfig's `src` program, so
+  // the type-aware parser can't resolve them. Lint them without type info.
+  {
+    files: ['tests/**/*.ts'],
+    ...tseslint.configs.disableTypeChecked,
+  },
+  // Tests reference mocked methods as values (expect(jira.createStory)...) and
+  // inspect dynamically-typed mock payloads (parsed JSON, fetch call args), so the
+  // unbound-method and unsafe-any family are false positives here. Production code
+  // stays fully strict; these relaxations apply only to test files.
+  {
+    files: ['**/*.test.ts'],
+    rules: {
+      '@typescript-eslint/unbound-method': 'off',
+      '@typescript-eslint/no-explicit-any': 'off',
+      '@typescript-eslint/no-unsafe-assignment': 'off',
+      '@typescript-eslint/no-unsafe-member-access': 'off',
+      '@typescript-eslint/no-unsafe-argument': 'off',
+      '@typescript-eslint/no-unsafe-call': 'off',
+      '@typescript-eslint/no-unsafe-return': 'off',
+    },
+  },
   // Prettier last: turn off any formatting rules that would conflict.
   prettier,
 );

@@ -32,6 +32,11 @@ class FakeGateway implements DiscordGateway {
   listMessages(threadId: string): Promise<readonly RawMessage[]> {
     return Promise.resolve(this.messagesByThread[threadId] ?? []);
   }
+  sent: { channelId: string; content: string }[] = [];
+  sendMessage(channelId: string, content: string): Promise<void> {
+    this.sent.push({ channelId, content });
+    return Promise.resolve();
+  }
 }
 
 const RECENT = new Date('2026-11-06T12:00:00Z');
@@ -159,6 +164,48 @@ describe('real-time gateway path', () => {
       'thread_created',
       'status_command',
     ]);
+  });
+});
+
+describe('!resync command routing', () => {
+  it('routes !resync to the handler and does not enqueue it as a comment', async () => {
+    const gateway = new FakeGateway([], {});
+    const queue = new InMemoryEventQueue();
+    const calls: { channelName: string; replyChannelId: string }[] = [];
+    await new Ingestor({
+      gateway,
+      queue,
+      onResyncCommand: (cmd) => {
+        calls.push({ channelName: cmd.channelName, replyChannelId: cmd.replyChannelId });
+        return Promise.resolve();
+      },
+    }).start();
+
+    await gateway.messageHandler!(msg('m1', 't1', RECENT, { content: '!resync' }));
+
+    expect(calls).toEqual([{ channelName: 'proj-checkout', replyChannelId: 't1' }]);
+    // The command itself is not enqueued as a comment.
+    expect(await drain(queue)).toHaveLength(0);
+  });
+
+  it('still enqueues ordinary messages as comments', async () => {
+    const gateway = new FakeGateway([], {});
+    const queue = new InMemoryEventQueue();
+    const calls: unknown[] = [];
+    await new Ingestor({
+      gateway,
+      queue,
+      onResyncCommand: () => {
+        calls.push(1);
+        return Promise.resolve();
+      },
+    }).start();
+
+    await gateway.messageHandler!(msg('m1', 't1', RECENT, { content: 'just a normal note' }));
+
+    expect(calls).toHaveLength(0);
+    const events = await drain(queue);
+    expect(events.map((e) => (e.payload as { type: string }).type)).toEqual(['comment']);
   });
 });
 

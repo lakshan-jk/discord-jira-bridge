@@ -9,3 +9,13 @@
 
 export { createSyncEngine } from './engine.js';
 export type { SyncEngine, SyncDeps, SyncResult, SyncLogger } from './types.js';
+
+export { createResyncer, formatSummary } from './resync.js';
+export type {
+  Resyncer,
+  ResyncerDeps,
+  ResyncGateway,
+  ResyncRequest,
+  ResyncSummary,
+  ResyncLogger,
+} from './resync.js';

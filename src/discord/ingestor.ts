@@ -11,8 +11,17 @@
  */
 
 import type { EventQueue } from '../db/index.js';
-import { normalizeMessage, normalizeThreadCreated, toEnqueueInput } from './normalize.js';
+import { isResyncCommand, normalizeMessage, normalizeThreadCreated, toEnqueueInput } from './normalize.js';
 import type { DiscordGateway, IngestedEvent, RawMessage, RawThread } from './types.js';
+
+/** Emitted when a user issues `!resync` in a forum channel (real-time only). */
+export interface ResyncCommand {
+  /** The forum channel the command was issued in (-> project key). */
+  readonly channelName: string;
+  /** Channel/thread id to post the summary reply into. */
+  readonly replyChannelId: string;
+  readonly requesterDisplayName: string;
+}
 
 /** Minimal log surface; defaults to console. Kept injectable for tests. */
 export interface IngestLogger {
@@ -35,17 +44,21 @@ export interface IngestorDeps {
   readonly gateway: DiscordGateway;
   readonly queue: EventQueue;
   readonly logger?: IngestLogger;
+  /** Handler for the `!resync` command. Omit to ignore the command. */
+  readonly onResyncCommand?: (command: ResyncCommand) => Promise<void>;
 }
 
 export class Ingestor {
   private readonly gateway: DiscordGateway;
   private readonly queue: EventQueue;
   private readonly log: IngestLogger;
+  private readonly onResyncCommand?: (command: ResyncCommand) => Promise<void>;
 
   constructor(deps: IngestorDeps) {
     this.gateway = deps.gateway;
     this.queue = deps.queue;
     this.log = deps.logger ?? noopLogger;
+    this.onResyncCommand = deps.onResyncCommand;
   }
 
   /** Wire real-time gateway handlers and connect. */
@@ -118,6 +131,29 @@ export class Ingestor {
     message: RawMessage,
     source: IngestedEvent['source'],
   ): Promise<boolean> {
+    // Intercept the channel-level `!resync` command (live gateway only — we don't
+    // re-trigger it from historical messages during backfill). It is routed to the
+    // resync handler instead of being enqueued as a comment.
+    if (
+      source === 'gateway' &&
+      this.onResyncCommand &&
+      !message.author.isBot &&
+      !message.isSystem &&
+      message.parentChannelName !== null &&
+      isResyncCommand(message.content)
+    ) {
+      this.log.info('resync command received', {
+        channel: message.parentChannelName,
+        requester: message.author.displayName,
+      });
+      await this.onResyncCommand({
+        channelName: message.parentChannelName,
+        replyChannelId: message.threadId,
+        requesterDisplayName: message.author.displayName,
+      });
+      return false;
+    }
+
     const event = normalizeMessage(message, source);
     if (!event) {
       this.log.debug('dropped message', { messageId: message.id });
