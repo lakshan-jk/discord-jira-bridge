@@ -157,7 +157,7 @@ describe('real-time gateway path', () => {
     await new Ingestor({ gateway, queue }).start();
 
     await gateway.threadHandler!(thread('t9', RECENT));
-    await gateway.messageHandler!(msg('m9', 't9', RECENT, { content: '/status Done' }));
+    await gateway.messageHandler!(msg('m9', 't9', RECENT, { content: 'status: done' }));
 
     const events = await drain(queue);
     expect(events.map((e) => (e.payload as { type: string }).type)).toEqual([

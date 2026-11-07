@@ -10,7 +10,7 @@ work.
 > app is deployed. Replace them once it's live.
 >
 > - **Health check:** `https://<YOUR-APP>.fly.dev/health` → `{"status":"ok","db":"up"}`
-> - **Discord invite:** `https://discord.com/oauth2/authorize?client_id=<CLIENT_ID>&...` _(invite the bot to your server)_
+> - **Discord server invite:** `https://discord.gg/<INVITE-CODE>` _(join the demo server to see the bot in action)_
 
 ---
 
@@ -23,8 +23,18 @@ The model (confirmed with the team — see [`design-decisions.md`](./design-deci
 | Forum **channel**              | **Project**                   | Project key derived from the channel name: `proj-checkout` → `CHECKOUT`, `proj-payment-service` → `PAYMENTSERVICE`. If no matching project exists, the event is logged and skipped — never auto-created. |
 | Forum **post / thread**        | **Story** (issue)             | The thread title becomes the summary; the starter message becomes the description. |
 | **Message** in a thread        | **Comment** on the Story      | Prefixed with the Discord author's display name. |
-| `/status <name>` message       | **Status transition**         | Resolved against the issue's real workflow at runtime (never hardcoded). |
-| `/blocked` message             | **`blocked` label + comment** | Handled as a label rather than assuming a custom workflow status exists. |
+| `status: <keyword>` in a message | **Status transition**       | Keyword maps to a canonical JIRA status, resolved against the issue's real workflow at runtime (never hardcoded). |
+| `status: blocked`              | **`blocked` label + comment** | Handled as a label rather than assuming a custom workflow status exists. |
+
+The `status:` marker is detected **anywhere** in a message, so it works in a
+natural sentence — e.g. `wrapping up, status: done`. Recognized keywords:
+
+| Keyword | JIRA effect |
+| --- | --- |
+| `todo` | transition to **To Do** |
+| `in_progress` | transition to **In Progress** (also accepts `in progress` / `in-progress`) |
+| `done` | transition to **Done** |
+| `blocked` | add the **`blocked`** label (not a transition) |
 
 **Attribution:** a single JIRA service account performs every API call. The
 Discord author's name is carried in the comment body, so no activity is
@@ -45,11 +55,11 @@ duplicate.
 2. **Comment** — a message in a thread is added as a comment on the mapped
    Story. If the Story can't be found, the event is skipped (not failed).
 
-3. **Transition** — `/status In Progress` moves the Story. The comment is
-   **always recorded first**, then the transition is attempted. Transition IDs
-   are resolved dynamically per project; if the target isn't offered by that
-   workflow, the comment still lands and the skip is logged. `/blocked` applies
-   the `blocked` label instead of a transition.
+3. **Transition** — a `status: in_progress` marker (anywhere in a message) moves
+   the Story. The comment is **always recorded first**, then the transition is
+   attempted. Transition IDs are resolved dynamically per project; if the target
+   isn't offered by that workflow, the comment still lands and the skip is
+   logged. `status: blocked` applies the `blocked` label instead of a transition.
 
 4. **Resync** — `!resync` typed in a forum channel sweeps every thread in that
    channel through the same idempotent create path, backfilling only the missing
