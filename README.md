@@ -6,10 +6,9 @@ transitions. Ingestion is decoupled from JIRA writes by a durable Postgres queue
 so the bridge survives restarts and JIRA outages without losing or duplicating
 work.
 
-> **Deployment pending.** The public endpoints below are placeholders until the
-> app is deployed. Replace them once it's live.
+> **Live:**
 >
-> - **Health check:** `https://<YOUR-APP>.fly.dev/health` → `{"status":"ok","db":"up"}`
+> - **Health check:** [`https://discord-jira-bridge.fly.dev/health`](https://discord-jira-bridge.fly.dev/health) → `{"status":"ok","db":"up"}`
 > - **Discord server invite:** `https://discord.gg/<INVITE-CODE>` _(join the demo server to see the bot in action)_
 
 ---
